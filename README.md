@@ -23,6 +23,72 @@ You build an assistant that:
 - Pandas (plus NumPy)
 - MCP (Model Context Protocol) tools
 - LLM
+- FastAPI + Jinja2 web UI
+- Mobile notification adapters (FCM/APNs + mock provider)
+
+## Initial Draft (Now Implemented)
+
+The repository now includes a runnable starter application with:
+- Backend API (`FastAPI`) for portfolio, stock analysis, chat, and notifications.
+- Web UI dashboard (`/`) for interacting with all core flows.
+- Notification service for mobile apps:
+  - Device registration endpoint
+  - Notification send endpoint
+  - Provider abstraction for Android (`FCM`) and iOS (`APNs`) with mock fallback
+
+### Quickstart
+
+1. Create and activate a virtual environment.
+2. Install dependencies:
+   ```bash
+   python -m pip install -r requirements.txt
+   ```
+3. Create env file:
+   ```bash
+   cp .env.example .env
+   ```
+4. Run server:
+   ```bash
+   uvicorn src.app:app --host 127.0.0.1 --port 8000 --reload --reload-dir src --reload-exclude .venv
+   ```
+5. Open:
+   - Web UI: `http://127.0.0.1:8000/`
+   - API docs: `http://127.0.0.1:8000/docs`
+
+### API Endpoints
+
+- `GET /api/health`
+- `GET /api/portfolio/summary`
+- `GET /api/stocks/{symbol}/analysis`
+- `POST /api/chat`
+- `POST /api/notifications/register`
+- `POST /api/notifications/send`
+
+### Railway Deployment
+
+This repo is configured for Railway with:
+- `railway.json` (build/start/healthcheck)
+- `nixpacks.toml` (pins Python runtime)
+- `Procfile` fallback start command
+
+Steps:
+1. Push this repository to GitHub.
+2. In Railway, create a new project from the GitHub repo.
+3. Set environment variables in Railway:
+   - `APP_NAME=Stock Market AI Assistant`
+   - `APP_DEBUG=false`
+   - `APP_HOST=0.0.0.0`
+   - `APP_PORT=8000` (optional; Railway provides `PORT`)
+   - `ZERODHA_API_KEY=demo_key` (or real key)
+   - `ZERODHA_ACCESS_TOKEN=demo_token` (or real token)
+   - `NOTIFICATION_PROVIDER=mock`
+   - `FCM_SERVER_KEY=` (optional)
+   - `APNS_AUTH_TOKEN=` (optional)
+4. Deploy. Railway runs:
+   - `uvicorn src.app:app --host 0.0.0.0 --port $PORT`
+5. Validate after deploy:
+   - `/api/health`
+   - `/` (web UI)
 
 ## Architecture Overview
 
