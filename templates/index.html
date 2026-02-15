@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Market AI Assistant</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <main class="layout">
+    <header class="hero">
+      <h1>Stock Market AI Assistant</h1>
+      <p>Analyze portfolio risk, evaluate symbols, and notify mobile users.</p>
+    </header>
+
+    <section class="card">
+      <h2>Portfolio Snapshot</h2>
+      <button id="loadPortfolio">Load Portfolio</button>
+      <pre id="portfolioOutput"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Stock Analysis</h2>
+      <div class="row">
+        <input id="symbolInput" placeholder="Enter symbol (e.g., TCS)" />
+        <button id="analyzeStock">Analyze</button>
+      </div>
+      <pre id="stockOutput"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Ask Assistant</h2>
+      <div class="row">
+        <input id="chatInput" placeholder="Ask about risk or a stock" />
+        <button id="sendChat">Ask</button>
+      </div>
+      <pre id="chatOutput"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Mobile Notification Service</h2>
+      <h3>1) Register Device</h3>
+      <div class="grid">
+        <input id="regUserId" placeholder="user_id" />
+        <select id="regPlatform">
+          <option value="android">android</option>
+          <option value="ios">ios</option>
+        </select>
+        <input id="regToken" placeholder="device token" />
+        <button id="registerDevice">Register</button>
+      </div>
+      <pre id="registerOutput"></pre>
+
+      <h3>2) Send Notification</h3>
+      <div class="grid">
+        <input id="notifyUserId" placeholder="user_id" />
+        <input id="notifyTitle" placeholder="title" />
+        <input id="notifyBody" placeholder="message body" />
+        <button id="sendNotification">Send</button>
+      </div>
+      <pre id="notifyOutput"></pre>
+    </section>
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
