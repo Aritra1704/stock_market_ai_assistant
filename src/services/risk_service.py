@@ -1,28 +1,27 @@
 from __future__ import annotations
 
-from src.models.risk_snapshot import RiskSnapshot
+from math import floor
+
+from sqlalchemy.orm import Session
+
+from src.config import settings
+from src.services.journal_service import JournalService
 
 
 class RiskService:
-    def build_risk_snapshot(self, holdings: list[dict], portfolio_volatility: float = 0.0) -> RiskSnapshot:
-        if not holdings:
-            return RiskSnapshot(
-                gross_exposure=0.0,
-                net_exposure=0.0,
-                top_5_concentration=0.0,
-                portfolio_volatility=0.0,
-                diversification_score=0.0,
-            )
+    def __init__(self, journal_service: JournalService | None = None) -> None:
+        self.journal_service = journal_service or JournalService()
 
-        total = sum(h["market_value"] for h in holdings)
-        weights = sorted([(h["market_value"] / total) for h in holdings], reverse=True)
-        top_5 = sum(weights[:5])
-        diversification = max(0.0, round((1 - top_5) * 100, 2))
+    def budget_remaining(self, db: Session, run_date):
+        budget = self.journal_service.get_or_create_budget(db, run_date)
+        return budget.remaining
 
-        return RiskSnapshot(
-            gross_exposure=round(total, 2),
-            net_exposure=round(total, 2),
-            top_5_concentration=round(top_5, 4),
-            portfolio_volatility=round(portfolio_volatility, 4),
-            diversification_score=diversification,
-        )
+    def can_open_new_position(self, db: Session, run_date) -> bool:
+        open_positions = self.journal_service.get_open_position_count(db, run_date)
+        return open_positions < settings.max_open_positions
+
+    def size_buy_qty(self, latest_price: float, remaining_budget: float) -> int:
+        if latest_price <= 0:
+            return 0
+        spend_cap = min(remaining_budget, settings.daily_budget_inr)
+        return floor(spend_cap / latest_price)
