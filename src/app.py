@@ -8,12 +8,18 @@ from fastapi.templating import Jinja2Templates
 from src.api.routes import router as api_router
 from src.config import get_settings
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[1]  # project root
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, debug=settings.app_debug)
 app.include_router(api_router)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+# app.mount("/static", StaticFiles(directory="static"), name="static")
+# templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
 
 
 @app.get("/", response_class=HTMLResponse)
