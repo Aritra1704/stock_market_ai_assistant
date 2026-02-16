@@ -11,9 +11,18 @@ class Settings:
     app_host: str = os.getenv("APP_HOST", "0.0.0.0")
     app_port: int = int(os.getenv("APP_PORT", "8003"))
 
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./stock_market_ai_assistant.db")
-    daily_budget_inr: float = float(os.getenv("DAILY_BUDGET_INR", "100"))
-    max_open_positions: int = int(os.getenv("MAX_OPEN_POSITIONS", "1"))
+    database_url: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+psycopg://postgres:postgres@localhost:5432/postgres",
+    )
+    db_schema: str = os.getenv("DB_SCHEMA", "stock_ai_lab")
+
+    intraday_daily_budget_inr: float = float(os.getenv("INTRADAY_DAILY_BUDGET_INR", "100"))
+    intraday_max_open_positions: int = int(os.getenv("INTRADAY_MAX_OPEN_POSITIONS", "1"))
+
+    swing_allocation_inr: float = float(os.getenv("SWING_ALLOCATION_INR", "1000"))
+    swing_max_open_positions: int = int(os.getenv("SWING_MAX_OPEN_POSITIONS", "2"))
+    swing_default_horizon_days: int = int(os.getenv("SWING_DEFAULT_HORIZON_DAYS", "20"))
 
 
 settings = Settings()

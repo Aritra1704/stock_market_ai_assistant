@@ -1,24 +1,12 @@
 # stock_market_ai_assistant
 
-FastAPI-based paper-trading backend using yfinance intraday OHLCV data.
+Broker-agnostic FastAPI trading lab with two paper-trading modes:
+- `INTRADAY` (5m candles, daily budget INR 100)
+- `SWING` (1d candles, allocation INR 1000, simulated GTT workflow)
 
-The architecture separates:
-- Data ingestion (`integrations/market_data`)
-- Strategy + signals (`strategies`, `services/signal_service.py`)
-- Risk controls (`services/risk_service.py`)
-- Execution adapter (`integrations/brokers/paper.py`)
-- Journaling/audit trail (`services/journal_service.py`)
+This project is deterministic and rules-based. It does not predict markets.
 
-## Features
-
-- `GET /api/trend` for trend + indicators (SMA20, EMA20, RSI14, ATR14)
-- `POST /api/watchlist` to create daily watchlists
-- `POST /api/run` to execute intraday paper-trading workflow
-- Daily INR 100 budget enforcement in paper mode
-- DB logs for watchlist snapshots, market snapshots, trade plans, and transactions
-- Swagger docs at `/docs`
-
-## Run Locally
+## Run locally
 
 ```bash
 python3 -m venv .venv
@@ -29,42 +17,109 @@ cp .env.example .env
 uvicorn src.app:app --reload --port 8003
 ```
 
-Open:
-- App docs: `http://127.0.0.1:8003/docs`
-- Health: `http://127.0.0.1:8003/api/health`
+Open Swagger docs:
+- `http://127.0.0.1:8003/docs`
 
-## Example API Calls
+## Main APIs
 
-### 1) Trend analysis
+- `GET /api/health`
+- `GET /api/trend` (intraday trend)
+- `GET /api/swing/trend` (daily swing trend + readiness)
+- `POST /api/watchlist` (supports mode `INTRADAY` or `SWING`)
+- `POST /api/run` (supports mode `INTRADAY` or `SWING`)
+- `GET /api/journal/swing/today`
+
+## Example curl
+
+### Intraday trend
 
 ```bash
 curl "http://127.0.0.1:8003/api/trend?symbol=RELIANCE.NS&interval=5m&period=5d"
 ```
 
-### 2) Add watchlist
+### Swing trend
+
+```bash
+curl "http://127.0.0.1:8003/api/swing/trend?symbol=TCS.NS&period=6mo&interval=1d"
+```
+
+### Add intraday watchlist
 
 ```bash
 curl -X POST "http://127.0.0.1:8003/api/watchlist" \
   -H "Content-Type: application/json" \
-  -d '{
-    "symbols": ["RELIANCE.NS", "TCS.NS"],
-    "reason": "manual"
-  }'
+  -d '{"symbols": ["RELIANCE.NS", "TCS.NS"], "reason": "manual", "mode": "INTRADAY"}'
 ```
 
-### 3) Run strategy for daily watchlist
+### Add swing watchlist
+
+```bash
+curl -X POST "http://127.0.0.1:8003/api/watchlist" \
+  -H "Content-Type: application/json" \
+  -d '{"symbols": ["INFY.NS", "HDFCBANK.NS"], "reason": "manual", "mode": "SWING", "horizon_days": 20}'
+```
+
+### Run intraday
 
 ```bash
 curl -X POST "http://127.0.0.1:8003/api/run" \
   -H "Content-Type: application/json" \
-  -d '{
-    "interval": "5m",
-    "period": "5d"
-  }'
+  -d '{"mode": "INTRADAY", "interval": "5m", "period": "5d"}'
 ```
+
+### Run swing
+
+```bash
+curl -X POST "http://127.0.0.1:8003/api/run" \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "SWING", "interval": "1d", "period": "6mo"}'
+```
+
+### Swing journal snapshot
+
+```bash
+curl "http://127.0.0.1:8003/api/journal/swing/today"
+```
+
+## PostgreSQL schema setup (non-public)
+
+This app is configured to use a dedicated schema (default `stock_ai_lab`) and avoid writing to `public` or `prayana_sit`.
+
+1. Ensure `.env` has:
+```env
+DATABASE_URL=postgresql+psycopg://postgres:<your_password>@localhost:5432/postgres
+DB_SCHEMA=stock_ai_lab
+```
+
+2. Apply schema:
+```bash
+psql -h localhost -p 5432 -U postgres -d postgres -f schema.sql
+```
+
+3. Verify tables:
+```sql
+SELECT schemaname, tablename
+FROM pg_tables
+WHERE schemaname = 'stock_ai_lab'
+ORDER BY tablename;
+```
+
+## Paper GTT simulation assumptions
+
+- `BUY_SETUP` creates `trade_plan` (`plan_type=GTT`) + pending BUY GTT.
+- BUY GTT triggers when latest daily `high >= trigger_price`.
+- Fill price in simulation = `trigger_price`.
+- On entry trigger, a SELL protective GTT is created at trailing stop.
+- On each swing run:
+  - pending GTT triggers are evaluated
+  - trailing stop is updated
+  - time stop / take-profit / trailing-stop exits can close the position
+- Every action logs rationale + features so runs are replayable.
 
 ## Notes
 
-- yfinance intraday data availability depends on Yahoo limits/market hours.
-- This project is paper-trading only.
-- No API key is required for yfinance.
+- yfinance requires no API key.
+- Swing actions are intended to run once daily.
+- PostgreSQL is the default database in `.env.example`.
+- For quick local-only testing, you can switch to SQLite:
+  - `DATABASE_URL=sqlite:///./stock_market_ai_assistant.db`

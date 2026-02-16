@@ -10,35 +10,39 @@ logger = logging.getLogger(__name__)
 
 class YFinanceClient:
     def fetch_ohlcv(self, symbol: str, interval: str = "5m", period: str = "5d") -> pd.DataFrame:
-        logger.info("Fetching yfinance data", extra={"symbol": symbol, "interval": interval, "period": period})
+        logger.info("Fetching yfinance candles", extra={"symbol": symbol, "interval": interval, "period": period})
         ticker = yf.Ticker(symbol)
         df = ticker.history(interval=interval, period=period, auto_adjust=False)
         if df.empty:
             raise ValueError(f"No OHLCV data returned for {symbol}")
 
-        df = df.rename(columns={
-            "Open": "open",
-            "High": "high",
-            "Low": "low",
-            "Close": "close",
-            "Volume": "volume",
-        })
-        df = df.reset_index().rename(columns={"Datetime": "timestamp", "Date": "timestamp"})
+        renamed = df.rename(
+            columns={
+                "Open": "open",
+                "High": "high",
+                "Low": "low",
+                "Close": "close",
+                "Volume": "volume",
+            }
+        )
+        out = renamed.reset_index().rename(columns={"Datetime": "timestamp", "Date": "timestamp"})
 
         required_cols = ["timestamp", "open", "high", "low", "close"]
-        missing = [c for c in required_cols if c not in df.columns]
+        missing = [c for c in required_cols if c not in out.columns]
         if missing:
             raise ValueError(f"Missing OHLC columns for {symbol}: {missing}")
 
-        if "volume" not in df.columns:
-            df["volume"] = 0
-        df["volume"] = df["volume"].fillna(0)
+        if "volume" not in out.columns:
+            out["volume"] = 0
+        out["volume"] = out["volume"].fillna(0)
 
-        for col in ["open", "high", "low", "close"]:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-        df = df.dropna(subset=["open", "high", "low", "close"])
+        for col in ["open", "high", "low", "close", "volume"]:
+            out[col] = pd.to_numeric(out[col], errors="coerce")
 
-        if df.empty:
+        out = out.dropna(subset=["open", "high", "low", "close"]).sort_values("timestamp").reset_index(drop=True)
+        if out.empty:
             raise ValueError(f"No valid candles after cleaning for {symbol}")
+        return out
 
-        return df
+    def fetch_daily(self, symbol: str, period: str = "6mo") -> pd.DataFrame:
+        return self.fetch_ohlcv(symbol=symbol, interval="1d", period=period)
