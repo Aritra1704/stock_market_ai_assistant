@@ -2,14 +2,45 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from urllib.parse import quote_plus
 
 
 def _normalize_database_url(raw_url: str) -> str:
+    if not raw_url:
+        return raw_url
     if raw_url.startswith("postgres://"):
         return raw_url.replace("postgres://", "postgresql+psycopg://", 1)
     if raw_url.startswith("postgresql://") and "+psycopg" not in raw_url.split("://", 1)[0]:
         return raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
     return raw_url
+
+
+def _with_sslmode_if_needed(db_url: str) -> str:
+    if not db_url or "sslmode=" in db_url:
+        return db_url
+    lowered = db_url.lower()
+    if "localhost" in lowered or "127.0.0.1" in lowered:
+        return db_url
+    sep = "&" if "?" in db_url else "?"
+    return f"{db_url}{sep}sslmode=require"
+
+
+def _build_database_url() -> str:
+    explicit = os.getenv("DATABASE_URL", "").strip()
+    if explicit:
+        return _with_sslmode_if_needed(_normalize_database_url(explicit))
+
+    host = os.getenv("PGHOST", "").strip()
+    port = os.getenv("PGPORT", "5432").strip()
+    user = os.getenv("PGUSER", "").strip()
+    password = os.getenv("PGPASSWORD", "").strip()
+    database = os.getenv("PGDATABASE", "").strip()
+    if host and user and database:
+        pwd = quote_plus(password)
+        url = f"postgresql+psycopg://{user}:{pwd}@{host}:{port}/{database}"
+        return _with_sslmode_if_needed(url)
+
+    return "postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
 
 
 @dataclass(frozen=True)
@@ -19,12 +50,7 @@ class Settings:
     app_host: str = os.getenv("APP_HOST", "0.0.0.0")
     app_port: int = int(os.getenv("APP_PORT", "8004"))
 
-    database_url: str = _normalize_database_url(
-        os.getenv(
-            "DATABASE_URL",
-            "postgresql+psycopg://postgres:postgres@localhost:5432/postgres",
-        )
-    )
+    database_url: str = _build_database_url()
     db_schema: str = os.getenv("DB_SCHEMA", "stock_ai_lab")
 
     intraday_daily_budget_inr: float = float(os.getenv("INTRADAY_DAILY_BUDGET_INR", "100"))
