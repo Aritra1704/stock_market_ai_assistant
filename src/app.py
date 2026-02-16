@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.routes import router
 from src.config import settings
@@ -28,7 +30,26 @@ templates = Jinja2Templates(directory="templates")
 
 @app.on_event("startup")
 def startup_event() -> None:
-    init_db()
+    max_attempts = 8
+    delay_seconds = 3
+    last_error: Exception | None = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            init_db()
+            logging.info("Database initialization completed", extra={"attempt": attempt, "schema": settings.db_schema})
+            return
+        except SQLAlchemyError as exc:
+            last_error = exc
+            logging.exception(
+                "Database initialization failed",
+                extra={"attempt": attempt, "max_attempts": max_attempts},
+            )
+            if attempt < max_attempts:
+                time.sleep(delay_seconds)
+            continue
+
+    raise RuntimeError("Database initialization failed after retries") from last_error
 
 
 app.include_router(router)

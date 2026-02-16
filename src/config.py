@@ -27,6 +27,8 @@ def _with_sslmode_if_needed(db_url: str) -> str:
 
 def _build_database_url() -> str:
     explicit = os.getenv("DATABASE_URL", "").strip()
+    if not explicit:
+        explicit = os.getenv("DATABASE_PUBLIC_URL", "").strip()
     if explicit:
         return _with_sslmode_if_needed(_normalize_database_url(explicit))
 
