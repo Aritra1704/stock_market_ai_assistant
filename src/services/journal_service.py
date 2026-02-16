@@ -62,6 +62,14 @@ class JournalService:
     def get_watchlist_symbols(self, db: Session, run_date: date, mode: str) -> list[str]:
         return [row.symbol for row in self.get_watchlist_rows(db, run_date, mode)]
 
+    def get_watchlist_count(self, db: Session, run_date: date, mode: str) -> int:
+        mode = self._normalize_mode(mode)
+        return len(
+            db.execute(
+                select(WatchlistDaily.id).where(WatchlistDaily.date == run_date, WatchlistDaily.mode == mode)
+            ).all()
+        )
+
     def _default_budget_total(self, mode: str) -> float:
         mode = self._normalize_mode(mode)
         if mode == "SWING":

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.config import settings
 from src.integrations.market_data.yfinance_client import YFinanceClient
 from src.models.db import get_db_session
 from src.models.schemas import (
@@ -18,7 +19,7 @@ from src.models.schemas import (
     WatchlistRequest,
     WatchlistResponse,
 )
-from src.models.tables import TradePlan
+from src.models.tables import DailyBudget, GTTOrder, TradePlan, Transaction
 from src.services.execution_service import ExecutionService
 from src.services.gtt_service import GTTService
 from src.services.journal_service import JournalService
@@ -77,10 +78,26 @@ def set_watchlist(payload: WatchlistRequest, db: Session = Depends(get_db_sessio
     symbols = [s.strip().upper() for s in payload.symbols if s.strip()]
     if not symbols:
         raise HTTPException(status_code=400, detail="No valid symbols provided")
+    if len(symbols) > settings.max_stocks_per_mode:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Max {settings.max_stocks_per_mode} symbols allowed per request",
+        )
 
     horizon = payload.horizon_days
     if mode == "SWING" and horizon is not None and not (5 <= horizon <= 30):
         raise HTTPException(status_code=400, detail="For SWING mode, horizon_days should be between 5 and 30")
+
+    existing_count = journal_service.get_watchlist_count(db, run_date, mode)
+    unique_new = len(set(symbols))
+    if existing_count + unique_new > settings.max_stocks_per_mode:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Watchlist limit exceeded for {mode}. "
+                f"Existing={existing_count}, new={unique_new}, max={settings.max_stocks_per_mode}"
+            ),
+        )
 
     inserted = journal_service.add_watchlist(
         db=db,
@@ -94,7 +111,7 @@ def set_watchlist(payload: WatchlistRequest, db: Session = Depends(get_db_sessio
 
 
 def _run_intraday(payload: RunRequest, db: Session, run_id: str, run_date):
-    symbols = journal_service.get_watchlist_symbols(db, run_date, mode="INTRADAY")
+    symbols = journal_service.get_watchlist_symbols(db, run_date, mode="INTRADAY")[: settings.max_stocks_per_mode]
     if not symbols:
         return RunSummaryResponse(
             run_id=run_id,
@@ -225,7 +242,7 @@ def _run_swing(payload: RunRequest, db: Session, run_id: str, run_date):
     interval = "1d" if payload.interval == "5m" else payload.interval
     period = "6mo" if payload.period == "5d" else payload.period
 
-    symbols = journal_service.get_watchlist_symbols(db, run_date, mode="SWING")
+    symbols = journal_service.get_watchlist_symbols(db, run_date, mode="SWING")[: settings.max_stocks_per_mode]
     if not symbols:
         return RunSummaryResponse(
             run_id=run_id,
@@ -243,7 +260,7 @@ def _run_swing(payload: RunRequest, db: Session, run_id: str, run_date):
     signal_counts = {"BUY_SETUP": 0, "EXIT": exit_triggers, "HOLD": 0, "NO_TRADE": 0}
     trades_executed = entry_triggers + exit_triggers
 
-    watchlist_rows = journal_service.get_watchlist_rows(db, run_date, mode="SWING")
+    watchlist_rows = journal_service.get_watchlist_rows(db, run_date, mode="SWING")[: settings.max_stocks_per_mode]
 
     for row in watchlist_rows:
         symbol = row.symbol
@@ -463,3 +480,109 @@ def swing_journal_today(db: Session = Depends(get_db_session)):
             for t in txs
         ],
     )
+
+
+@router.get("/dashboard/today")
+def dashboard_today(db: Session = Depends(get_db_session)):
+    run_date = today_utc()
+
+    intraday_watchlist = journal_service.get_watchlist_symbols(db, run_date, mode="INTRADAY")
+    swing_watchlist = journal_service.get_watchlist_symbols(db, run_date, mode="SWING")
+
+    intraday_budget = journal_service.get_or_create_budget(db, run_date, "INTRADAY")
+    swing_budget = journal_service.get_or_create_budget(db, run_date, "SWING")
+
+    plans = db.execute(select(TradePlan).where(TradePlan.date == run_date).order_by(TradePlan.created_at.desc())).scalars().all()
+    txs = db.execute(select(Transaction).where(Transaction.date == run_date).order_by(Transaction.created_at.desc())).scalars().all()
+    gtts = db.execute(select(GTTOrder).where(GTTOrder.date_created == run_date).order_by(GTTOrder.created_at.desc())).scalars().all()
+
+    intraday_picks = [
+        p.symbol
+        for p in plans
+        if p.mode == "INTRADAY" and p.side in {"BUY", "SELL"} and p.status not in {"CANCELLED"}
+    ]
+    swing_picks = [
+        p.symbol
+        for p in plans
+        if p.mode == "SWING" and p.side == "BUY" and p.status in {"GTT_PLACED", "OPEN", "CLOSED"}
+    ]
+
+    return {
+        "date": str(run_date),
+        "watchlist": {
+            "intraday": intraday_watchlist,
+            "swing": swing_watchlist,
+        },
+        "picked_stocks": {
+            "intraday": sorted(list(set(intraday_picks))),
+            "swing": sorted(list(set(swing_picks))),
+        },
+        "budget": {
+            "intraday": {
+                "total": intraday_budget.budget_total,
+                "spent": intraday_budget.spent,
+                "remaining": intraday_budget.remaining,
+            },
+            "swing": {
+                "total": swing_budget.budget_total,
+                "spent": swing_budget.spent,
+                "remaining": swing_budget.remaining,
+            },
+        },
+        "trade_plans": [
+            {
+                "id": p.id,
+                "mode": p.mode,
+                "symbol": p.symbol,
+                "side": p.side,
+                "status": p.status,
+                "plan_type": p.plan_type,
+                "qty": p.qty,
+                "price_ref": p.price_ref,
+                "buy_trigger": p.gtt_buy_trigger,
+                "sell_trigger": p.gtt_sell_trigger,
+                "stop_loss": p.stop_loss,
+                "take_profit": p.take_profit,
+                "source_portal": p.source_portal,
+                "confidence": p.confidence,
+                "rationale": p.rationale,
+                "justification": p.exit_rules_json,
+                "created_at": p.created_at.isoformat(),
+            }
+            for p in plans
+        ],
+        "gtt_orders": [
+            {
+                "id": g.id,
+                "symbol": g.symbol,
+                "side": g.side,
+                "qty": g.qty,
+                "trigger_price": g.trigger_price,
+                "status": g.status,
+                "linked_trade_plan_id": g.linked_trade_plan_id,
+                "triggered_at": g.triggered_at.isoformat() if g.triggered_at else None,
+                "executed_price": g.executed_price,
+            }
+            for g in gtts
+        ],
+        "transactions": [
+            {
+                "id": t.id,
+                "trade_plan_id": t.trade_plan_id,
+                "mode": t.mode,
+                "symbol": t.symbol,
+                "side": t.side,
+                "qty": t.qty,
+                "order_type": t.order_type,
+                "source_portal": t.source_portal,
+                "execution_portal": t.execution_portal,
+                "entry_price": t.entry_price,
+                "exit_price": t.exit_price,
+                "pnl": t.pnl,
+                "reason": t.notes,
+                "features": t.features_json,
+                "created_at": t.created_at.isoformat(),
+            }
+            for t in txs
+        ],
+    }

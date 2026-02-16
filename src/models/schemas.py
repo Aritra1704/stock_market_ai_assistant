@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
-from typing import Literal
+import datetime as dt
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -31,7 +31,7 @@ class SwingTrendResponse(BaseModel):
 
 
 class WatchlistRequest(BaseModel):
-    date: date | None = None
+    date: Optional[dt.date] = None
     symbols: list[str] = Field(min_length=1)
     reason: str = "manual"
     mode: StrategyMode = "INTRADAY"
@@ -40,13 +40,13 @@ class WatchlistRequest(BaseModel):
 
 class RunRequest(BaseModel):
     mode: StrategyMode = "INTRADAY"
-    date: date | None = None
+    date: Optional[dt.date] = None
     interval: str = "5m"
     period: str = "5d"
 
 
 class WatchlistResponse(BaseModel):
-    date: date
+    date: dt.date
     mode: StrategyMode
     inserted: int
     symbols: list[str]
@@ -54,7 +54,7 @@ class WatchlistResponse(BaseModel):
 
 class RunSummaryResponse(BaseModel):
     run_id: str
-    date: date
+    date: dt.date
     mode: StrategyMode
     symbols_processed: int
     signals: dict[str, int]
@@ -63,7 +63,7 @@ class RunSummaryResponse(BaseModel):
 
 
 class SwingJournalTodayResponse(BaseModel):
-    date: date
+    date: dt.date
     watchlist: list[str]
     open_positions: list[dict]
     pending_gtt_orders: list[dict]

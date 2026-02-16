@@ -3,62 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Stock Market AI Assistant</title>
+  <title>Stock Market AI Assistant Dashboard</title>
   <link rel="stylesheet" href="/static/css/styles.css" />
 </head>
 <body>
   <main class="layout">
     <header class="hero">
-      <h1>Stock Market AI Assistant</h1>
-      <p>Analyze portfolio risk, evaluate symbols, and notify mobile users.</p>
+      <h1>Today Trading Console</h1>
+      <p>Track selected stocks, trade requests, triggers, executed transactions, and reasoning.</p>
+      <div class="actions">
+        <button id="refreshBtn">Refresh Dashboard</button>
+        <button id="runIntradayBtn">Run Intraday</button>
+        <button id="runSwingBtn">Run Swing</button>
+      </div>
+      <p id="statusText" class="status"></p>
     </header>
 
     <section class="card">
-      <h2>Portfolio Snapshot</h2>
-      <button id="loadPortfolio">Load Portfolio</button>
-      <pre id="portfolioOutput"></pre>
+      <h2>Budgets</h2>
+      <div id="budgetGrid" class="grid2"></div>
     </section>
 
     <section class="card">
-      <h2>Stock Analysis</h2>
-      <div class="row">
-        <input id="symbolInput" placeholder="Enter symbol (e.g., TCS)" />
-        <button id="analyzeStock">Analyze</button>
-      </div>
-      <pre id="stockOutput"></pre>
+      <h2>Stocks Picked For Today</h2>
+      <div id="pickedGrid" class="grid2"></div>
     </section>
 
     <section class="card">
-      <h2>Ask Assistant</h2>
-      <div class="row">
-        <input id="chatInput" placeholder="Ask about risk or a stock" />
-        <button id="sendChat">Ask</button>
-      </div>
-      <pre id="chatOutput"></pre>
+      <h2>Watchlists (Max 10 per mode)</h2>
+      <div id="watchlistGrid" class="grid2"></div>
     </section>
 
     <section class="card">
-      <h2>Mobile Notification Service</h2>
-      <h3>1) Register Device</h3>
-      <div class="grid">
-        <input id="regUserId" placeholder="user_id" />
-        <select id="regPlatform">
-          <option value="android">android</option>
-          <option value="ios">ios</option>
-        </select>
-        <input id="regToken" placeholder="device token" />
-        <button id="registerDevice">Register</button>
+      <h2>Trade Requests / Plans</h2>
+      <div class="tableWrap">
+        <table id="plansTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Mode</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Status</th>
+              <th>Qty</th>
+              <th>Price Ref</th>
+              <th>Buy Trigger</th>
+              <th>Sell Trigger</th>
+              <th>Reason</th>
+              <th>Justification</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
-      <pre id="registerOutput"></pre>
+    </section>
 
-      <h3>2) Send Notification</h3>
-      <div class="grid">
-        <input id="notifyUserId" placeholder="user_id" />
-        <input id="notifyTitle" placeholder="title" />
-        <input id="notifyBody" placeholder="message body" />
-        <button id="sendNotification">Send</button>
+    <section class="card">
+      <h2>GTT Orders</h2>
+      <div class="tableWrap">
+        <table id="gttTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Qty</th>
+              <th>Trigger</th>
+              <th>Status</th>
+              <th>Linked Plan</th>
+              <th>Executed Price</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
-      <pre id="notifyOutput"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Transactions Log</h2>
+      <div class="tableWrap">
+        <table id="txTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Mode</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Qty</th>
+              <th>Entry</th>
+              <th>Exit</th>
+              <th>PnL</th>
+              <th>Order Type</th>
+              <th>Source</th>
+              <th>Execution</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
   </main>
 
