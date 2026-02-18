@@ -53,9 +53,79 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button.busy::after {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border: 2px solid #043b2b;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+
 .status {
-  color: #b9d3ff;
+  margin: 8px 0 0;
   font-size: 0.95rem;
+}
+
+.status-info {
+  color: #b9d3ff;
+}
+
+.status-success {
+  color: #9ef0b1;
+}
+
+.status-error {
+  color: #ff9fa0;
+}
+
+.status-warn {
+  color: #ffd88a;
+}
+
+.feedback {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+}
+
+.feedback-hidden {
+  display: none;
+}
+
+.feedback-info {
+  color: #dbeaff;
+  background: rgba(53, 110, 171, 0.2);
+  border-color: #2f5d8f;
+}
+
+.feedback-success {
+  color: #c7f4d3;
+  background: rgba(37, 133, 92, 0.2);
+  border-color: #2d8a63;
+}
+
+.feedback-warn {
+  color: #ffe2ab;
+  background: rgba(155, 114, 47, 0.2);
+  border-color: #b28644;
+}
+
+.feedback-error {
+  color: #ffd3d3;
+  background: rgba(159, 58, 58, 0.2);
+  border-color: #b64d4d;
 }
 
 .card {
@@ -125,6 +195,10 @@ td pre {
 
 .muted {
   color: var(--muted);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {
