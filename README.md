@@ -34,6 +34,8 @@ Open Swagger docs:
 - `GET /api/swing/trend` (daily swing trend + readiness)
 - `POST /api/watchlist` (supports mode `INTRADAY` or `SWING`)
 - `POST /api/run` (supports mode `INTRADAY` or `SWING`)
+- `POST /api/audit/top-stocks/generate` (build/store top-100 audit snapshot)
+- `GET /api/audit/top-stocks/today` (read today's stored top-100 snapshot)
 - `GET /api/journal/swing/today`
 
 ## Example curl
@@ -80,6 +82,20 @@ curl -X POST "http://127.0.0.1:8004/api/run" \
 curl -X POST "http://127.0.0.1:8004/api/run" \
   -H "Content-Type: application/json" \
   -d '{"mode": "SWING", "interval": "1d", "period": "6mo"}'
+```
+
+### Generate today's top-100 audit snapshots (both modes)
+
+```bash
+curl -X POST "http://127.0.0.1:8004/api/audit/top-stocks/generate" \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"BOTH","force_refresh":true}'
+```
+
+### Read today's top-100 audit snapshots
+
+```bash
+curl "http://127.0.0.1:8004/api/audit/top-stocks/today"
 ```
 
 ### Swing journal snapshot
@@ -162,11 +178,16 @@ SWING_ALLOCATION_INR=1000
 SWING_MAX_OPEN_POSITIONS=2
 SWING_DEFAULT_HORIZON_DAYS=20
 MAX_STOCKS_PER_MODE=10
+AUDIT_TOP_STOCKS_LIMIT=100
+AUDIT_RETENTION_DAYS=15
+AUDIT_CLEANUP_INTERVAL_MINUTES=360
+AUDIT_CLEANUP_SCHEDULER_ENABLED=true
 ```
 3. Deploy.
 
 Notes:
 - Startup automatically runs DB initialization (`init_db()`), creates `DB_SCHEMA` if missing, and creates all tables.
+- Startup also runs retention cleanup for `top_stock_audit` and schedules recurring cleanup.
 - No manual table creation step is required on Railway.
 - `DATABASE_URL` from Railway is normalized in app code to `postgresql+psycopg://...` automatically.
 

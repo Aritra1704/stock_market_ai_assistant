@@ -38,6 +38,8 @@ function setRunUiState(mode, busy) {
     const intradayBusy = mode === "INTRADAY";
     const swingBusy = mode === "SWING";
     setButtonState("refreshBtn", true);
+    setButtonState("pickIntradayBtn", true);
+    setButtonState("pickSwingBtn", true);
     setButtonState("runIntradayBtn", true, intradayBusy ? "Running Intraday" : null, intradayBusy);
     setButtonState("runSwingBtn", true, swingBusy ? "Running Swing" : null, swingBusy);
     setStatus(`Running ${mode} strategy...`, "info");
@@ -45,6 +47,8 @@ function setRunUiState(mode, busy) {
   }
 
   setButtonState("refreshBtn", false);
+  setButtonState("pickIntradayBtn", false);
+  setButtonState("pickSwingBtn", false);
   setButtonState("runIntradayBtn", false);
   setButtonState("runSwingBtn", false);
 }
@@ -221,6 +225,52 @@ function formatSignals(signals) {
   return parts.length ? parts.join(", ") : "-";
 }
 
+function parseSymbolsInput(raw) {
+  if (!raw) return [];
+  const cleaned = raw
+    .split(/[\s,]+/)
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+  return [...new Set(cleaned)];
+}
+
+async function pickModeWatchlist(mode) {
+  if (runInProgress) {
+    setRunFeedback("A strategy run is in progress. Please wait and try again.", "warn");
+    return;
+  }
+
+  const promptText = `Enter ${mode} symbols (comma or space separated).`;
+  const promptDefault = mode === "INTRADAY" ? "RELIANCE.NS, TCS.NS, INFY.NS" : "HDFCBANK.NS, ITC.NS, SBIN.NS";
+  const input = window.prompt(promptText, promptDefault);
+  if (input === null) return;
+
+  const symbols = parseSymbolsInput(input);
+  if (!symbols.length) {
+    setRunFeedback(`No valid ${mode} symbols entered.`, "warn");
+    return;
+  }
+
+  setRunFeedback(`Adding ${symbols.length} ${mode} symbol(s) to today's watchlist...`, "info");
+  try {
+    const payload = {
+      mode,
+      symbols,
+      reason: "manual-ui",
+    };
+    if (mode === "SWING") payload.horizon_days = 20;
+
+    const result = await apiCall("/api/watchlist", "POST", payload);
+    setRunFeedback(
+      `Watchlist updated for ${mode}. Inserted ${result.inserted} symbol(s): ${result.symbols.join(", ")}.`,
+      "success",
+    );
+    await loadDashboard();
+  } catch (err) {
+    setRunFeedback(`${mode} watchlist update failed: ${err.message}`, "error");
+  }
+}
+
 async function runMode(mode) {
   if (runInProgress) {
     setRunFeedback("Another run is already in progress. Please wait for it to finish.", "warn");
@@ -259,6 +309,8 @@ async function runMode(mode) {
 }
 
 byId("refreshBtn").addEventListener("click", loadDashboard);
+byId("pickIntradayBtn").addEventListener("click", () => pickModeWatchlist("INTRADAY"));
+byId("pickSwingBtn").addEventListener("click", () => pickModeWatchlist("SWING"));
 byId("runIntradayBtn").addEventListener("click", () => runMode("INTRADAY"));
 byId("runSwingBtn").addEventListener("click", () => runMode("SWING"));
 

@@ -141,3 +141,25 @@ CREATE INDEX IF NOT EXISTS ix_transactions_mode ON transactions (mode);
 CREATE INDEX IF NOT EXISTS ix_transactions_gtt_id ON transactions (gtt_id);
 CREATE INDEX IF NOT EXISTS ix_transactions_source_portal ON transactions (source_portal);
 CREATE INDEX IF NOT EXISTS ix_transactions_execution_portal ON transactions (execution_portal);
+
+CREATE TABLE IF NOT EXISTS top_stock_audit (
+    id BIGSERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    mode VARCHAR(16) NOT NULL,
+    rank INTEGER NOT NULL,
+    symbol VARCHAR(30) NOT NULL,
+    score DOUBLE PRECISION NOT NULL DEFAULT 0,
+    metric VARCHAR(40) NOT NULL,
+    details_json JSON NOT NULL DEFAULT '{}'::json,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_top_stock_audit_date_mode_symbol
+ON top_stock_audit (date, mode, symbol);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_top_stock_audit_date_mode_rank
+ON top_stock_audit (date, mode, rank);
+
+CREATE INDEX IF NOT EXISTS ix_top_stock_audit_date ON top_stock_audit (date);
+CREATE INDEX IF NOT EXISTS ix_top_stock_audit_mode ON top_stock_audit (mode);
+CREATE INDEX IF NOT EXISTS ix_top_stock_audit_symbol ON top_stock_audit (symbol);

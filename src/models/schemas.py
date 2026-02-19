@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 
 StrategyMode = Literal["INTRADAY", "SWING"]
+AuditFetchMode = Literal["INTRADAY", "SWING", "BOTH"]
 
 
 class TrendResponse(BaseModel):
@@ -68,3 +69,30 @@ class SwingJournalTodayResponse(BaseModel):
     open_positions: list[dict]
     pending_gtt_orders: list[dict]
     transactions: list[dict]
+
+
+class TopStockAuditItem(BaseModel):
+    rank: int
+    symbol: str
+    score: float
+    metric: str
+    details: dict = Field(default_factory=dict)
+    created_at: dt.datetime
+
+
+class TopStockAuditModeResponse(BaseModel):
+    mode: StrategyMode
+    count: int
+    items: list[TopStockAuditItem]
+
+
+class TopStocksAuditTodayResponse(BaseModel):
+    date: dt.date
+    intraday: TopStockAuditModeResponse
+    swing: TopStockAuditModeResponse
+
+
+class TopStocksAuditGenerateRequest(BaseModel):
+    date: Optional[dt.date] = None
+    mode: AuditFetchMode = "BOTH"
+    force_refresh: bool = False

@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.api.routes import router
 from src.config import settings
 from src.models.db import init_db
+from src.services.top_stocks_cleanup_scheduler import TopStocksCleanupScheduler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +27,7 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+top_stocks_cleanup_scheduler = TopStocksCleanupScheduler()
 
 
 @app.on_event("startup")
@@ -38,6 +40,7 @@ def startup_event() -> None:
         try:
             init_db()
             logging.info("Database initialization completed", extra={"attempt": attempt, "schema": settings.db_schema})
+            top_stocks_cleanup_scheduler.start()
             return
         except SQLAlchemyError as exc:
             last_error = exc
@@ -50,6 +53,11 @@ def startup_event() -> None:
             continue
 
     raise RuntimeError("Database initialization failed after retries") from last_error
+
+
+@app.on_event("shutdown")
+def shutdown_event() -> None:
+    top_stocks_cleanup_scheduler.stop()
 
 
 app.include_router(router)

@@ -121,3 +121,21 @@ class GTTOrder(Base):
     triggered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     executed_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class TopStockAudit(Base):
+    __tablename__ = "top_stock_audit"
+    __table_args__ = (
+        UniqueConstraint("date", "mode", "symbol", name="uq_top_stock_audit_date_mode_symbol"),
+        UniqueConstraint("date", "mode", "rank", name="uq_top_stock_audit_date_mode_rank"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    symbol: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    metric: Mapped[str] = mapped_column(String(40), nullable=False)
+    details_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

@@ -15,16 +15,21 @@ from src.models.schemas import (
     RunSummaryResponse,
     SwingJournalTodayResponse,
     SwingTrendResponse,
+    TopStockAuditItem,
+    TopStockAuditModeResponse,
+    TopStocksAuditGenerateRequest,
+    TopStocksAuditTodayResponse,
     TrendResponse,
     WatchlistRequest,
     WatchlistResponse,
 )
-from src.models.tables import DailyBudget, GTTOrder, TradePlan, Transaction
+from src.models.tables import DailyBudget, GTTOrder, TopStockAudit, TradePlan, Transaction
 from src.services.execution_service import ExecutionService
 from src.services.gtt_service import GTTService
 from src.services.journal_service import JournalService
 from src.services.risk_service import RiskService
 from src.services.signal_service import SignalService
+from src.services.top_stocks_audit_service import TopStocksAuditService
 from src.services.trend_service import TrendService
 from src.utils.time import today_utc
 
@@ -38,6 +43,7 @@ risk_service = RiskService(journal_service)
 execution_service = ExecutionService(journal=journal_service)
 gtt_service = GTTService(journal=journal_service, execution=execution_service)
 market_client = YFinanceClient()
+top_stocks_audit_service = TopStocksAuditService()
 
 
 @router.get("/health")
@@ -423,6 +429,94 @@ def run_strategy(payload: RunRequest, db: Session = Depends(get_db_session)):
     if mode == "SWING":
         return _run_swing(payload, db, run_id, run_date)
     return _run_intraday(payload, db, run_id, run_date)
+
+
+def _to_top_stock_mode_response(mode: str, rows: list[TopStockAudit]) -> TopStockAuditModeResponse:
+    return TopStockAuditModeResponse(
+        mode=mode,
+        count=len(rows),
+        items=[
+            TopStockAuditItem(
+                rank=row.rank,
+                symbol=row.symbol,
+                score=row.score,
+                metric=row.metric,
+                details=row.details_json or {},
+                created_at=row.created_at,
+            )
+            for row in rows
+        ],
+    )
+
+
+@router.post("/audit/top-stocks/generate", response_model=TopStocksAuditTodayResponse)
+def generate_top_stocks_audit(payload: TopStocksAuditGenerateRequest, db: Session = Depends(get_db_session)):
+    run_date = payload.date or today_utc()
+    requested_mode = payload.mode.upper()
+
+    if requested_mode == "BOTH":
+        needs_refresh = payload.force_refresh or not top_stocks_audit_service.has_complete_snapshot(
+            db, run_date, "INTRADAY"
+        ) or not top_stocks_audit_service.has_complete_snapshot(db, run_date, "SWING")
+        if needs_refresh:
+            refreshed = top_stocks_audit_service.refresh_modes(db, run_date, ["INTRADAY", "SWING"])
+            intraday_rows = refreshed["INTRADAY"]
+            swing_rows = refreshed["SWING"]
+        else:
+            intraday_rows = top_stocks_audit_service.get_mode_rows(db, run_date, "INTRADAY")
+            swing_rows = top_stocks_audit_service.get_mode_rows(db, run_date, "SWING")
+    elif requested_mode == "INTRADAY":
+        intraday_rows = top_stocks_audit_service.get_or_build_mode_rows(
+            db,
+            run_date,
+            "INTRADAY",
+            force_refresh=payload.force_refresh,
+            build_if_missing=True,
+        )
+        swing_rows = top_stocks_audit_service.get_mode_rows(db, run_date, "SWING")
+    else:  # SWING
+        intraday_rows = top_stocks_audit_service.get_mode_rows(db, run_date, "INTRADAY")
+        swing_rows = top_stocks_audit_service.get_or_build_mode_rows(
+            db,
+            run_date,
+            "SWING",
+            force_refresh=payload.force_refresh,
+            build_if_missing=True,
+        )
+
+    return TopStocksAuditTodayResponse(
+        date=run_date,
+        intraday=_to_top_stock_mode_response("INTRADAY", intraday_rows),
+        swing=_to_top_stock_mode_response("SWING", swing_rows),
+    )
+
+
+@router.get("/audit/top-stocks/today", response_model=TopStocksAuditTodayResponse)
+def top_stocks_audit_today(
+    refresh_if_missing: bool = Query(True),
+    force_refresh: bool = Query(False),
+    db: Session = Depends(get_db_session),
+):
+    run_date = today_utc()
+    needs_refresh = force_refresh
+    if refresh_if_missing and not needs_refresh:
+        needs_refresh = not top_stocks_audit_service.has_complete_snapshot(
+            db, run_date, "INTRADAY"
+        ) or not top_stocks_audit_service.has_complete_snapshot(db, run_date, "SWING")
+
+    if needs_refresh:
+        refreshed = top_stocks_audit_service.refresh_modes(db, run_date, ["INTRADAY", "SWING"])
+        intraday_rows = refreshed["INTRADAY"]
+        swing_rows = refreshed["SWING"]
+    else:
+        intraday_rows = top_stocks_audit_service.get_mode_rows(db, run_date, "INTRADAY")
+        swing_rows = top_stocks_audit_service.get_mode_rows(db, run_date, "SWING")
+
+    return TopStocksAuditTodayResponse(
+        date=run_date,
+        intraday=_to_top_stock_mode_response("INTRADAY", intraday_rows),
+        swing=_to_top_stock_mode_response("SWING", swing_rows),
+    )
 
 
 @router.get("/journal/swing/today", response_model=SwingJournalTodayResponse)

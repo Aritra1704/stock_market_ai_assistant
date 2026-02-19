@@ -1,0 +1,6 @@
+
+uvicorn src.app:app --host 127.0.0.1 --port 8004 --reload --reload-dir src --reload-exclude ".venv/*"
+
+if above doesn't work
+
+.venv/bin/uvicorn src.app:app --host 127.0.0.1 --port 8004 --reload --reload-dir src --reload-exclude ".venv/*"
