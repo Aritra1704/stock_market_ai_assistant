@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="screen-head">
+  <h1>Settings</h1>
+  <p class="muted">Active strategy config for intraday momentum paper trading.</p>
+</section>
+
+<section class="card">
+  <h2>Active Config</h2>
+  <p id="settingsStatus" class="status-line">Loading...</p>
+  <div id="settingsSummary" class="result-box">Loading config...</div>
+</section>
+
+<section class="card">
+  <h2>Edit Config</h2>
+  <form id="settingsForm" class="form-grid">
+    <label class="compact-field">
+      <span>Sector Override</span>
+      <input id="cfgSector" type="text" placeholder="optional" />
+    </label>
+
+    <label class="compact-field">
+      <span>Budget Daily (INR)</span>
+      <input id="cfgBudget" type="number" min="1" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Max Positions (1-2)</span>
+      <input id="cfgMaxPositions" type="number" min="1" max="2" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Monitor Interval (min)</span>
+      <input id="cfgInterval" type="number" min="1" max="60" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Warmup Minutes</span>
+      <input id="cfgWarmup" type="number" min="0" max="120" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Max Entries / Symbol / Day</span>
+      <input id="cfgMaxEntries" type="number" min="1" max="10" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Target %</span>
+      <input id="cfgTargetPct" type="number" min="0.1" step="0.1" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Stop %</span>
+      <input id="cfgStopPct" type="number" min="0.1" step="0.1" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Time Exit (HH:MM)</span>
+      <input id="cfgTimeExit" type="text" placeholder="15:20" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Rebalance Partial Threshold %</span>
+      <input id="cfgPartialThreshold" type="number" min="0.1" step="0.1" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Rebalance Full Threshold %</span>
+      <input id="cfgFullThreshold" type="number" min="0.1" step="0.1" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Rebalance Partial Fraction</span>
+      <input id="cfgPartialFraction" type="number" min="0.1" max="1" step="0.1" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Fill Model</span>
+      <input id="cfgFillModel" type="text" value="close" required />
+    </label>
+
+    <div>
+      <button id="saveConfigBtn" type="submit" class="accent">Save Config</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
