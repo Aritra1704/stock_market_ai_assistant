@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="screen-head">
+  <h1>Audit / Justifications</h1>
+  <p class="muted">Timeline of deterministic decision justifications grouped by tick.</p>
+</section>
+
+<section class="card">
+  <h2>Timeline Filters</h2>
+  <p id="auditStatus" class="status-line">Loading...</p>
+  <div class="inline-controls">
+    <label class="compact-field">
+      <span>Symbol</span>
+      <input id="auditSymbolFilter" type="text" placeholder="optional symbol" />
+    </label>
+    <button id="auditFilterBtn" class="ghost small">Apply</button>
+    <button id="auditClearBtn" class="ghost small">Clear</button>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Justification Timeline</h2>
+  <div id="auditTimeline" class="timeline-wrap"></div>
+</section>
+{% endblock %}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import Mapping
 
 from sqlalchemy import event
 from sqlalchemy import create_engine, inspect, text
@@ -37,6 +38,16 @@ def get_db_session():
         yield db
     finally:
         db.close()
+
+
+def _ensure_columns(conn, insp, table_name: str, expected: Mapping[str, str]) -> None:
+    if table_name not in insp.get_table_names():
+        return
+    existing = {col["name"] for col in insp.get_columns(table_name)}
+    for col_name, col_type in expected.items():
+        if col_name in existing:
+            continue
+        conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
 
 
 def _recreate_watchlist_if_needed(conn, insp) -> None:
@@ -137,11 +148,21 @@ def _ensure_sqlite_columns() -> None:
             "market_snapshot": {
                 "timeframe": "VARCHAR(10) DEFAULT '5m'",
                 "mode": "VARCHAR(16) DEFAULT 'INTRADAY'",
+                "run_tick_id": "INTEGER",
+                "candle_time": "DATETIME",
+                "open": "FLOAT",
+                "high": "FLOAT",
+                "low": "FLOAT",
+                "volume": "FLOAT",
                 "sma50": "FLOAT",
                 "ema50": "FLOAT",
+                "vol_avg20": "FLOAT",
+                "ema_slope": "FLOAT",
+                "score": "FLOAT",
                 "macd": "FLOAT",
                 "macd_signal": "FLOAT",
                 "indicators_json": "JSON",
+                "features_json": "JSON",
             },
             "trade_plan": {
                 "mode": "VARCHAR(16) DEFAULT 'INTRADAY'",
@@ -163,13 +184,34 @@ def _ensure_sqlite_columns() -> None:
         }
 
         for table_name, cols in expected.items():
+            _ensure_columns(conn, insp, table_name, cols)
+
+
+def _ensure_postgres_columns() -> None:
+    if not settings.database_url.startswith("postgresql"):
+        return
+
+    expected = {
+        "market_snapshot": {
+            "run_tick_id": "INTEGER",
+            "candle_time": "TIMESTAMP",
+            "open": "DOUBLE PRECISION",
+            "high": "DOUBLE PRECISION",
+            "low": "DOUBLE PRECISION",
+            "volume": "DOUBLE PRECISION",
+            "vol_avg20": "DOUBLE PRECISION",
+            "ema_slope": "DOUBLE PRECISION",
+            "score": "DOUBLE PRECISION",
+            "features_json": "JSONB",
+        }
+    }
+    with engine.begin() as conn:
+        insp = inspect(conn)
+        for table_name, cols in expected.items():
             if table_name not in insp.get_table_names():
                 continue
-            existing = {col["name"] for col in insp.get_columns(table_name)}
             for col_name, col_type in cols.items():
-                if col_name in existing:
-                    continue
-                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
+                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
 
 
 def init_db() -> None:
@@ -183,3 +225,4 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     _ensure_sqlite_columns()
+    _ensure_postgres_columns()

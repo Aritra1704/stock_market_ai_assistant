@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="screen-head">
+  <h1>Dashboard</h1>
+  <p class="muted">Today at a glance with quick actions and latest trade trail.</p>
+</section>
+
+<section class="card">
+  <h2>Today At A Glance</h2>
+  <p id="dashboardStatus" class="status-line">Loading...</p>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="label">Sector</span>
+      <span id="dashSector" class="value">-</span>
+    </div>
+    <div class="stat-card">
+      <span class="label">Budget Used</span>
+      <span id="dashBudgetUsed" class="value">-</span>
+    </div>
+    <div class="stat-card">
+      <span class="label">Budget Remaining</span>
+      <span id="dashBudgetRemaining" class="value">-</span>
+    </div>
+    <div class="stat-card">
+      <span class="label">Open Positions</span>
+      <span id="dashOpenPositions" class="value">-</span>
+    </div>
+    <div class="stat-card">
+      <span class="label">Last Tick</span>
+      <span id="dashLastTick" class="value">-</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Open Positions</h2>
+  <table id="dashboardPositionsTable" class="data-table"></table>
+</section>
+
+<section class="card">
+  <h2>Recent Console Log</h2>
+  <pre id="dashboardLog" class="log-panel">Waiting for run events...</pre>
+</section>
+{% endblock %}

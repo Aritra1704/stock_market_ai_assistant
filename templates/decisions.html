@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="screen-head">
+  <h1>Decisions</h1>
+  <p class="muted">Action decisions and deterministic reasons.</p>
+</section>
+
+<section class="card">
+  <h2>Decision Log</h2>
+  <p id="decisionsStatus" class="status-line">Loading...</p>
+  <div class="inline-controls">
+    <label class="compact-field">
+      <span>Symbol Filter</span>
+      <input id="decisionsSymbolFilter" type="text" placeholder="e.g. TCS.NS" />
+    </label>
+    <button id="decisionsFilterBtn" class="ghost small">Apply</button>
+    <button id="decisionsClearBtn" class="ghost small">Clear</button>
+  </div>
+  <table id="decisionsTable" class="data-table"></table>
+</section>
+{% endblock %}

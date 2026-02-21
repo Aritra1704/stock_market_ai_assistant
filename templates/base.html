@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ page_title or "Trading Console" }} | Stock Market AI Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}" />
+</head>
+<body data-page="{{ active_page or 'dashboard' }}">
+  <div class="shell">
+    <aside id="sidebar" class="sidebar" aria-label="Primary">
+      <div class="brand">Trading Console</div>
+      <nav class="nav-links">
+        <a href="/ui/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/ui/positions" class="{% if active_page == 'positions' %}active{% endif %}">Positions</a>
+        <a href="/ui/decisions" class="{% if active_page == 'decisions' %}active{% endif %}">Decisions</a>
+        <a href="/ui/transactions" class="{% if active_page == 'transactions' %}active{% endif %}">Transactions</a>
+        <a href="/ui/plan" class="{% if active_page == 'plan' %}active{% endif %}">Plan</a>
+        <a href="/ui/audit" class="{% if active_page == 'audit' %}active{% endif %}">Audit</a>
+        <a href="/ui/sectors" class="{% if active_page == 'sectors' %}active{% endif %}">Sectors</a>
+        <a href="/ui/settings" class="{% if active_page == 'settings' %}active{% endif %}">Settings</a>
+      </nav>
+    </aside>
+
+    <div class="main-panel">
+      <header class="action-bar">
+        <button id="sidebarToggle" class="ghost small" aria-label="Toggle navigation">Menu</button>
+
+        <div class="action-controls">
+          <label class="compact-field">
+            <span>Date</span>
+            <input id="globalDate" type="date" />
+          </label>
+
+          <label class="compact-field compact-narrow">
+            <span>Interval</span>
+            <input id="globalInterval" type="number" min="1" max="60" step="1" value="5" />
+          </label>
+
+          <div class="action-buttons">
+            <button id="actionRunTick" class="accent">Run Tick</button>
+            <button id="actionPlanDay">Plan Day</button>
+            <button id="actionRefresh" class="ghost">Refresh</button>
+            <button id="actionExitDay" class="danger">Force Exit</button>
+          </div>
+        </div>
+
+        <label class="compact-field compact-theme">
+          <span>Theme</span>
+          <select id="themeMode">
+            <option value="auto">Auto</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+      </header>
+
+      <main class="page-wrap">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="{{ url_for('static', path='app.js') }}" defer></script>
+</body>
+</html>

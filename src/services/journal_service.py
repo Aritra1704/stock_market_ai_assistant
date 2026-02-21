@@ -3,11 +3,27 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from src.config import settings
-from src.models.tables import DailyBudget, GTTOrder, MarketSnapshot, TradePlan, Transaction, WatchlistDaily
+from src.models.tables import (
+    DailyBudget,
+    DayPlan,
+    DaySelection,
+    DaySelectionItem,
+    DayUniverseSnapshot,
+    GTTOrder,
+    MarketSnapshot,
+    PaperPosition,
+    PaperTransaction,
+    RunTick,
+    StrategyConfig,
+    TradeDecision,
+    TradePlan,
+    Transaction,
+    WatchlistDaily,
+)
 from src.utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -422,4 +438,254 @@ class JournalService:
     def get_today_pending_gtt(self, db: Session, run_date: date) -> list[GTTOrder]:
         return db.execute(
             select(GTTOrder).where(GTTOrder.date_created == run_date, GTTOrder.status == "PENDING")
+        ).scalars().all()
+
+
+class TradingJournalService:
+    def get_active_config(self, db: Session) -> StrategyConfig:
+        row = db.execute(
+            select(StrategyConfig).where(StrategyConfig.active.is_(True)).order_by(StrategyConfig.id.desc())
+        ).scalar_one_or_none()
+        if row is not None:
+            return row
+
+        default = StrategyConfig(
+            active=True,
+            mode="INTRADAY",
+            strategy_version="momentum_v1",
+            budget_daily_inr=10000.0,
+            max_positions=2,
+            monitor_interval_min=5,
+            warmup_minutes=20,
+            max_entries_per_symbol_per_day=1,
+            target_pct=1.5,
+            stop_pct=1.0,
+            time_exit_hhmm="15:20",
+            rebalance_partial_threshold=15.0,
+            rebalance_full_threshold=20.0,
+            rebalance_partial_fraction=0.5,
+            fill_model="close",
+        )
+        db.add(default)
+        db.commit()
+        db.refresh(default)
+        return default
+
+    def create_strategy_config(self, db: Session, payload: dict) -> StrategyConfig:
+        set_active = bool(payload.pop("set_active", True))
+        row = StrategyConfig(**payload)
+        if set_active and row.active:
+            db.execute(update(StrategyConfig).where(StrategyConfig.active.is_(True)).values(active=False))
+            row.active = True
+        elif row.active:
+            has_active = db.execute(select(StrategyConfig.id).where(StrategyConfig.active.is_(True))).first()
+            if has_active:
+                row.active = False
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return row
+
+    def upsert_day_plan(
+        self,
+        db: Session,
+        run_date: date,
+        sector_name: str,
+        notes: str | None = None,
+        force_replan: bool = False,
+    ) -> DayPlan:
+        plan = db.execute(select(DayPlan).where(DayPlan.date == run_date)).scalar_one_or_none()
+        if plan is None:
+            plan = DayPlan(date=run_date, sector_name=sector_name, notes=notes)
+            db.add(plan)
+            db.commit()
+            db.refresh(plan)
+            return plan
+
+        plan.sector_name = sector_name
+        if notes is not None:
+            plan.notes = notes
+        db.add(plan)
+        db.commit()
+        db.refresh(plan)
+
+        if force_replan:
+            selection_ids = db.execute(select(DaySelection.id).where(DaySelection.day_plan_id == plan.id)).all()
+            ids = [row[0] for row in selection_ids]
+            if ids:
+                db.execute(delete(DaySelectionItem).where(DaySelectionItem.day_selection_id.in_(ids)))
+            db.execute(delete(DaySelection).where(DaySelection.day_plan_id == plan.id))
+            db.execute(delete(DayUniverseSnapshot).where(DayUniverseSnapshot.day_plan_id == plan.id))
+            db.commit()
+        return plan
+
+    def save_universe_snapshot(self, db: Session, day_plan_id: int, symbols: list[str]) -> list[DayUniverseSnapshot]:
+        rows: list[DayUniverseSnapshot] = []
+        for symbol in symbols:
+            clean = symbol.strip().upper()
+            if not clean:
+                continue
+            row = db.execute(
+                select(DayUniverseSnapshot).where(
+                    DayUniverseSnapshot.day_plan_id == day_plan_id,
+                    DayUniverseSnapshot.symbol == clean,
+                )
+            ).scalar_one_or_none()
+            if row is None:
+                row = DayUniverseSnapshot(day_plan_id=day_plan_id, symbol=clean)
+                db.add(row)
+            rows.append(row)
+        db.commit()
+        for row in rows:
+            db.refresh(row)
+        return rows
+
+    def create_day_selection(
+        self,
+        db: Session,
+        day_plan_id: int,
+        ranking_version: str,
+        ranked_items: list,
+    ) -> DaySelection:
+        selection = DaySelection(day_plan_id=day_plan_id, selected_at=datetime.utcnow(), ranking_version=ranking_version)
+        db.add(selection)
+        db.flush()
+
+        for item in ranked_items:
+            db.add(
+                DaySelectionItem(
+                    day_selection_id=selection.id,
+                    symbol=item.symbol,
+                    rank=int(item.rank),
+                    score=float(item.score),
+                    reasons_json=item.reasons_json,
+                    features_json=item.features_json,
+                    summary_text=item.summary_text,
+                )
+            )
+
+        db.add(selection)
+        db.commit()
+        db.refresh(selection)
+        return selection
+
+    def get_day_plan(self, db: Session, run_date: date) -> DayPlan | None:
+        return db.execute(select(DayPlan).where(DayPlan.date == run_date)).scalar_one_or_none()
+
+    def get_latest_day_selection(self, db: Session, day_plan_id: int) -> DaySelection | None:
+        return db.execute(
+            select(DaySelection)
+            .where(DaySelection.day_plan_id == day_plan_id)
+            .order_by(DaySelection.selected_at.desc(), DaySelection.id.desc())
+        ).scalars().first()
+
+    def get_selection_items(self, db: Session, day_selection_id: int) -> list[DaySelectionItem]:
+        return db.execute(
+            select(DaySelectionItem)
+            .where(DaySelectionItem.day_selection_id == day_selection_id)
+            .order_by(DaySelectionItem.rank.asc())
+        ).scalars().all()
+
+    def create_run_tick(self, db: Session, day_plan_id: int, interval: str) -> RunTick:
+        tick = RunTick(day_plan_id=day_plan_id, tick_time=datetime.utcnow(), interval=interval)
+        db.add(tick)
+        db.commit()
+        db.refresh(tick)
+        return tick
+
+    def add_market_snapshot_for_tick(
+        self,
+        db: Session,
+        run_date: date,
+        run_tick_id: int,
+        interval: str,
+        snapshot,
+    ) -> MarketSnapshot:
+        row = MarketSnapshot(
+            run_id=f"tick-{run_tick_id}",
+            date=run_date,
+            symbol=snapshot.symbol,
+            timestamp=snapshot.candle_time,
+            interval=interval,
+            run_tick_id=run_tick_id,
+            candle_time=snapshot.candle_time,
+            open=snapshot.open,
+            high=snapshot.high,
+            low=snapshot.low,
+            close=snapshot.close,
+            volume=snapshot.volume,
+            timeframe=interval,
+            mode="INTRADAY",
+            ema20=snapshot.ema20,
+            rsi14=snapshot.rsi14,
+            vol_avg20=snapshot.vol_avg20,
+            ema_slope=snapshot.ema_slope,
+            score=snapshot.score,
+            trend="UPTREND" if snapshot.buy_condition else "SIDEWAYS",
+            indicators_json={
+                "EMA_20": snapshot.ema20,
+                "RSI_14": snapshot.rsi14,
+                "VOL_AVG_20": snapshot.vol_avg20,
+                "EMA_SLOPE": snapshot.ema_slope,
+                "SCORE": snapshot.score,
+            },
+            features_json=snapshot.features_json,
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return row
+
+    def add_trade_decision(
+        self,
+        db: Session,
+        run_tick_id: int,
+        symbol: str,
+        action: str,
+        intended_qty: float,
+        intended_price: float,
+        reasons_json: dict,
+        features_json: dict,
+        summary_text: str,
+        stop_price: float | None = None,
+        target_price: float | None = None,
+    ) -> TradeDecision:
+        row = TradeDecision(
+            run_tick_id=run_tick_id,
+            symbol=symbol,
+            action=action,
+            intended_qty=float(intended_qty),
+            intended_price=float(intended_price),
+            stop_price=stop_price,
+            target_price=target_price,
+            reasons_json=reasons_json,
+            features_json=features_json,
+            summary_text=summary_text,
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return row
+
+    def get_positions(self, db: Session, run_date: date) -> list[PaperPosition]:
+        return db.execute(
+            select(PaperPosition)
+            .where(PaperPosition.date == run_date)
+            .order_by(PaperPosition.entry_time.asc(), PaperPosition.id.asc())
+        ).scalars().all()
+
+    def get_transactions(self, db: Session, run_date: date) -> list[PaperTransaction]:
+        return db.execute(
+            select(PaperTransaction)
+            .join(PaperPosition, PaperTransaction.position_id == PaperPosition.id)
+            .where(PaperPosition.date == run_date)
+            .order_by(PaperTransaction.timestamp.asc(), PaperTransaction.id.asc())
+        ).scalars().all()
+
+    def get_decisions(self, db: Session, day_plan_id: int) -> list[TradeDecision]:
+        return db.execute(
+            select(TradeDecision)
+            .join(RunTick, TradeDecision.run_tick_id == RunTick.id)
+            .where(RunTick.day_plan_id == day_plan_id)
+            .order_by(TradeDecision.created_at.asc(), TradeDecision.id.asc())
         ).scalars().all()

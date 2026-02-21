@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 
 import pandas as pd
 import yfinance as yf
@@ -46,3 +47,32 @@ class YFinanceClient:
 
     def fetch_daily(self, symbol: str, period: str = "6mo") -> pd.DataFrame:
         return self.fetch_ohlcv(symbol=symbol, interval="1d", period=period)
+
+    def fetch_latest_candle(self, symbol: str, interval: str = "5m", period: str = "5d") -> dict:
+        df = self.fetch_ohlcv(symbol=symbol, interval=interval, period=period)
+        latest = df.iloc[-1]
+        return {
+            "timestamp": latest["timestamp"],
+            "open": float(latest["open"]),
+            "high": float(latest["high"]),
+            "low": float(latest["low"]),
+            "close": float(latest["close"]),
+            "volume": float(latest.get("volume", 0.0)),
+        }
+
+    def fetch_many_ohlcv(
+        self,
+        symbols: Iterable[str],
+        interval: str = "5m",
+        period: str = "5d",
+    ) -> dict[str, pd.DataFrame]:
+        out: dict[str, pd.DataFrame] = {}
+        for symbol in symbols:
+            clean = symbol.strip().upper()
+            if not clean:
+                continue
+            try:
+                out[clean] = self.fetch_ohlcv(symbol=clean, interval=interval, period=period)
+            except Exception as exc:
+                logger.warning("Skipping symbol due to yfinance fetch failure", extra={"symbol": clean, "error": str(exc)})
+        return out

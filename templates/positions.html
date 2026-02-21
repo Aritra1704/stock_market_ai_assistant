@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="screen-head">
+  <h1>Positions</h1>
+  <p class="muted">Paper positions for today.</p>
+</section>
+
+<section class="card">
+  <h2>Position Book</h2>
+  <p id="positionsStatus" class="status-line">Loading...</p>
+  <table id="positionsTable" class="data-table"></table>
+</section>
+{% endblock %}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import quote_plus
 
 
@@ -30,9 +31,11 @@ def _normalize_database_url(raw_url: str) -> str:
     if not raw_url:
         return raw_url
     if raw_url.startswith("postgres://"):
-        return raw_url.replace("postgres://", "postgresql+psycopg://", 1)
-    if raw_url.startswith("postgresql://") and "+psycopg" not in raw_url.split("://", 1)[0]:
-        return raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return raw_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    if raw_url.startswith("postgresql://") and "+" not in raw_url.split("://", 1)[0]:
+        return raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    if raw_url.startswith("postgresql+psycopg://"):
+        return raw_url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
     return raw_url
 
 
@@ -68,16 +71,14 @@ def _build_database_url() -> str:
 
     if host and user and database:
         pwd = quote_plus(password)
-        url = f"postgresql+psycopg://{user}:{pwd}@{host}:{port}/{database}"
+        url = f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{database}"
         return _with_sslmode_if_needed(url)
 
-    if app_env == "UAT":
-        raise ValueError(
-            "UAT database is not configured. Set one of: UAT_DATABASE_URL, DATABASE_URL, DATABASE_PUBLIC_URL, "
-            "or UAT_PG* / PG* variables."
-        )
-
-    return "postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
+    # Local dev fallback when DATABASE_URL is not set.
+    sqlite_file = Path(os.getenv("SQLITE_DB_PATH", "./app.db")).as_posix()
+    if sqlite_file.startswith("/"):
+        return f"sqlite:///{sqlite_file}"
+    return f"sqlite:///./{sqlite_file.lstrip('./')}"
 
 
 def _build_db_schema() -> str:
@@ -116,5 +117,13 @@ class Settings:
     )
     audit_universe_timeout_seconds: int = int(os.getenv("AUDIT_UNIVERSE_TIMEOUT_SECONDS", "20"))
 
+    notification_provider: str = os.getenv("NOTIFICATION_PROVIDER", "mock").strip().lower()
+    fcm_server_key: str = os.getenv("FCM_SERVER_KEY", "")
+    apns_auth_token: str = os.getenv("APNS_AUTH_TOKEN", "")
+
 
 settings = Settings()
+
+
+def get_settings() -> Settings:
+    return settings

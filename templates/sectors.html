@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="screen-head">
+  <h1>Sectors</h1>
+  <p class="muted">Manage weekday sector schedule and sector universe symbols.</p>
+</section>
+
+<section class="card">
+  <h2>Weekday Schedule</h2>
+  <p id="sectorsStatus" class="status-line">Ready.</p>
+  <form id="scheduleForm" class="form-grid">
+    <label class="compact-field">
+      <span>Weekday</span>
+      <select id="scheduleWeekday" required>
+        <option value="0">Monday</option>
+        <option value="1">Tuesday</option>
+        <option value="2">Wednesday</option>
+        <option value="3">Thursday</option>
+        <option value="4">Friday</option>
+        <option value="5">Saturday</option>
+        <option value="6">Sunday</option>
+      </select>
+    </label>
+
+    <label class="compact-field">
+      <span>Sector Name</span>
+      <input id="scheduleSector" type="text" placeholder="e.g. IT" required />
+    </label>
+
+    <label class="checkbox-inline">
+      <input id="scheduleActive" type="checkbox" checked />
+      <span>Active</span>
+    </label>
+
+    <div>
+      <button id="scheduleSaveBtn" type="submit">Save Schedule</button>
+    </div>
+  </form>
+  <div id="scheduleResult" class="result-box">No updates yet.</div>
+</section>
+
+<section class="card">
+  <h2>Sector Universe</h2>
+  <form id="universeForm" class="form-grid">
+    <label class="compact-field">
+      <span>Sector Name</span>
+      <input id="universeSector" type="text" placeholder="e.g. IT" required />
+    </label>
+
+    <label class="compact-field">
+      <span>Add Symbols</span>
+      <input id="universeAdd" type="text" placeholder="TCS.NS, INFY.NS" />
+    </label>
+
+    <label class="compact-field">
+      <span>Remove Symbols</span>
+      <input id="universeRemove" type="text" placeholder="WIPRO.NS" />
+    </label>
+
+    <div>
+      <button id="universeSaveBtn" type="submit">Update Universe</button>
+    </div>
+  </form>
+  <div id="universeResult" class="result-box">No updates yet.</div>
+</section>
+{% endblock %}

@@ -9,51 +9,163 @@
 <body>
   <main class="layout">
     <header class="hero">
-      <h1>Today Trading Console</h1>
-      <p>Track selected stocks, trade requests, triggers, executed transactions, and reasoning.</p>
+      <h1>Trading Console</h1>
+      <p>Intraday momentum paper-trading dashboard with sector rotation controls and audit trail.</p>
       <div class="actions">
-        <button id="refreshBtn">Refresh Dashboard</button>
-        <button id="pickIntradayBtn">Pick Intraday Stocks</button>
-        <button id="pickSwingBtn">Pick Swing Stocks</button>
-        <button id="runIntradayBtn">Run Intraday</button>
-        <button id="runSwingBtn">Run Swing</button>
+        <button id="refreshBtn">Refresh All</button>
+        <button id="planDayBtn">Plan Day</button>
+        <button id="runTickBtn">Run Tick</button>
+        <button id="exitDayBtn">Force Exit Day</button>
+        <button id="refreshAuditBtn">Refresh Audit</button>
       </div>
       <p id="statusText" class="status status-info" role="status" aria-live="polite"></p>
       <p id="runFeedback" class="feedback feedback-hidden" role="status" aria-live="polite"></p>
     </header>
 
     <section class="card">
-      <h2>Budgets</h2>
-      <div id="budgetGrid" class="grid2"></div>
+      <h2>Day Controls</h2>
+      <div class="grid3">
+        <label class="field">
+          <span>Date</span>
+          <input id="mvpDateInput" type="date" />
+        </label>
+        <label class="field">
+          <span>Tick Interval (min)</span>
+          <input id="tickIntervalInput" type="number" min="1" max="60" step="1" value="5" />
+        </label>
+        <label class="field">
+          <span>Plan Notes</span>
+          <input id="planNotesInput" type="text" placeholder="Optional plan notes" />
+        </label>
+      </div>
+      <label class="checkboxRow">
+        <input id="forceReplanInput" type="checkbox" />
+        <span>Force replan for selected date</span>
+      </label>
     </section>
 
     <section class="card">
-      <h2>Stocks Picked For Today</h2>
-      <div id="pickedGrid" class="grid2"></div>
+      <h2>Active Config</h2>
+      <div id="activeConfigPanel" class="panel"></div>
+      <div class="grid3">
+        <label class="field">
+          <span>Sector Override</span>
+          <input id="cfgSector" type="text" placeholder="e.g. IT (optional)" />
+        </label>
+        <label class="field">
+          <span>Budget Daily (INR)</span>
+          <input id="cfgBudget" type="number" min="1" step="1" />
+        </label>
+        <label class="field">
+          <span>Max Positions (1-2)</span>
+          <input id="cfgMaxPositions" type="number" min="1" max="2" step="1" />
+        </label>
+        <label class="field">
+          <span>Monitor Interval (min)</span>
+          <input id="cfgInterval" type="number" min="1" max="60" step="1" />
+        </label>
+        <label class="field">
+          <span>Max Entries/Symbol/Day</span>
+          <input id="cfgMaxEntries" type="number" min="1" max="10" step="1" />
+        </label>
+        <label class="field">
+          <span>Time Exit (HH:MM)</span>
+          <input id="cfgTimeExit" type="text" placeholder="15:20" />
+        </label>
+        <label class="field">
+          <span>Target %</span>
+          <input id="cfgTargetPct" type="number" min="0.1" step="0.1" />
+        </label>
+        <label class="field">
+          <span>Stop %</span>
+          <input id="cfgStopPct" type="number" min="0.1" step="0.1" />
+        </label>
+        <label class="field">
+          <span>Rebalance Partial Threshold %</span>
+          <input id="cfgPartialThreshold" type="number" min="0.1" step="0.1" />
+        </label>
+        <label class="field">
+          <span>Rebalance Full Threshold %</span>
+          <input id="cfgFullThreshold" type="number" min="0.1" step="0.1" />
+        </label>
+        <label class="field">
+          <span>Rebalance Partial Fraction</span>
+          <input id="cfgPartialFraction" type="number" min="0.1" max="1" step="0.1" />
+        </label>
+      </div>
+      <div class="actions">
+        <button id="saveConfigBtn">Save Config</button>
+      </div>
     </section>
 
     <section class="card">
-      <h2>Watchlists (Max 10 per mode)</h2>
-      <div id="watchlistGrid" class="grid2"></div>
+      <h2>Sector Setup</h2>
+      <div class="grid2">
+        <div class="panel">
+          <h3>Weekday Schedule</h3>
+          <div class="grid2 tight">
+            <label class="field">
+              <span>Weekday</span>
+              <select id="scheduleWeekday">
+                <option value="0">Monday</option>
+                <option value="1">Tuesday</option>
+                <option value="2">Wednesday</option>
+                <option value="3">Thursday</option>
+                <option value="4">Friday</option>
+                <option value="5">Saturday</option>
+                <option value="6">Sunday</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Sector Name</span>
+              <input id="scheduleSector" type="text" placeholder="e.g. IT" />
+            </label>
+          </div>
+          <label class="checkboxRow">
+            <input id="scheduleActive" type="checkbox" checked />
+            <span>Active</span>
+          </label>
+          <div class="actions">
+            <button id="saveScheduleBtn">Save Schedule</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Sector Universe</h3>
+          <div class="grid2 tight">
+            <label class="field">
+              <span>Sector Name</span>
+              <input id="universeSector" type="text" placeholder="e.g. IT" />
+            </label>
+            <label class="field">
+              <span>Add Symbols</span>
+              <input id="universeAdd" type="text" placeholder="TCS.NS, INFY.NS" />
+            </label>
+            <label class="field">
+              <span>Remove Symbols</span>
+              <input id="universeRemove" type="text" placeholder="WIPRO.NS" />
+            </label>
+          </div>
+          <div class="actions">
+            <button id="updateUniverseBtn">Update Universe</button>
+          </div>
+        </div>
+      </div>
+      <div id="sectorResultPanel" class="panel panel-muted"></div>
     </section>
 
     <section class="card">
-      <h2>Trade Requests / Plans</h2>
+      <h2>Day Plan Top 5</h2>
+      <div id="dayPlanInfo" class="panel panel-muted"></div>
       <div class="tableWrap">
-        <table id="plansTable">
+        <table id="top5Table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Mode</th>
+              <th>Rank</th>
               <th>Symbol</th>
-              <th>Side</th>
-              <th>Status</th>
-              <th>Qty</th>
-              <th>Price Ref</th>
-              <th>Buy Trigger</th>
-              <th>Sell Trigger</th>
-              <th>Reason</th>
-              <th>Justification</th>
+              <th>Score</th>
+              <th>Summary</th>
+              <th>Reasons</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -62,43 +174,25 @@
     </section>
 
     <section class="card">
-      <h2>GTT Orders</h2>
-      <div class="tableWrap">
-        <table id="gttTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Symbol</th>
-              <th>Side</th>
-              <th>Qty</th>
-              <th>Trigger</th>
-              <th>Status</th>
-              <th>Linked Plan</th>
-              <th>Executed Price</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      <h2>Intraday Audit Snapshot</h2>
+      <div id="mvpSummaryPanel" class="grid2"></div>
     </section>
 
     <section class="card">
-      <h2>Transactions Log</h2>
+      <h2>Paper Positions</h2>
       <div class="tableWrap">
-        <table id="txTable">
+        <table id="positionsTable">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Mode</th>
               <th>Symbol</th>
-              <th>Side</th>
+              <th>Status</th>
               <th>Qty</th>
               <th>Entry</th>
+              <th>Stop</th>
+              <th>Target</th>
               <th>Exit</th>
               <th>PnL</th>
-              <th>Order Type</th>
-              <th>Source</th>
-              <th>Execution</th>
               <th>Reason</th>
             </tr>
           </thead>
@@ -106,6 +200,143 @@
         </table>
       </div>
     </section>
+
+    <section class="card">
+      <h2>Trade Decisions</h2>
+      <div class="tableWrap">
+        <table id="decisionsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Symbol</th>
+              <th>Action</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Summary</th>
+              <th>Reasons</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Paper Transactions</h2>
+      <div class="tableWrap">
+        <table id="paperTxTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Position</th>
+              <th>Decision</th>
+              <th>Side</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <details class="legacyWrap">
+      <summary>Legacy Console (Existing Endpoints)</summary>
+      <section class="card compact">
+        <div class="actions">
+          <button id="pickIntradayBtn">Pick Intraday Stocks</button>
+          <button id="pickSwingBtn">Pick Swing Stocks</button>
+          <button id="runIntradayBtn">Run Intraday</button>
+          <button id="runSwingBtn">Run Swing</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Budgets</h2>
+        <div id="budgetGrid" class="grid2"></div>
+      </section>
+
+      <section class="card">
+        <h2>Stocks Picked For Today</h2>
+        <div id="pickedGrid" class="grid2"></div>
+      </section>
+
+      <section class="card">
+        <h2>Watchlists (Max 10 per mode)</h2>
+        <div id="watchlistGrid" class="grid2"></div>
+      </section>
+
+      <section class="card">
+        <h2>Trade Requests / Plans</h2>
+        <div class="tableWrap">
+          <table id="plansTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Mode</th>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Status</th>
+                <th>Qty</th>
+                <th>Price Ref</th>
+                <th>Buy Trigger</th>
+                <th>Sell Trigger</th>
+                <th>Reason</th>
+                <th>Justification</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>GTT Orders</h2>
+        <div class="tableWrap">
+          <table id="gttTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Qty</th>
+                <th>Trigger</th>
+                <th>Status</th>
+                <th>Linked Plan</th>
+                <th>Executed Price</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Transactions Log</h2>
+        <div class="tableWrap">
+          <table id="txTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Mode</th>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Qty</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>PnL</th>
+                <th>Order Type</th>
+                <th>Source</th>
+                <th>Execution</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </details>
   </main>
 
   <script src="/static/js/app.js"></script>
