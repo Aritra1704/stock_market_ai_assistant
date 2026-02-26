@@ -14,6 +14,7 @@ from src.api.routes_trading import router as trading_router
 from src.config import settings
 from src.models.db import init_db
 from src.services.top_stocks_cleanup_scheduler import TopStocksCleanupScheduler
+from src.universe.routes import router as universe_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,6 +58,7 @@ def shutdown_event() -> None:
 
 app.include_router(router)
 app.include_router(trading_router)
+app.include_router(universe_router)
 
 
 def _render_ui(request: Request, template_name: str, active_page: str, page_title: str):

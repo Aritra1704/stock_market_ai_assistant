@@ -197,6 +197,40 @@ class SectorUniverse(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class Instrument(Base):
+    __tablename__ = "instruments"
+
+    symbol: Mapped[str] = mapped_column(String(30), primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    exchange: Mapped[str | None] = mapped_column(String(20), nullable=True, default="NSE")
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+
+class InstrumentTaxonomy(Base):
+    __tablename__ = "instrument_taxonomy"
+
+    symbol: Mapped[str] = mapped_column(ForeignKey("instruments.symbol"), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(30), nullable=False, default="yahoo", index=True)
+    yahoo_sector: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    yahoo_industry: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    trading_sector: Mapped[str | None] = mapped_column(String(60), nullable=True, index=True)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.6)
+    raw_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+
 class DayPlan(Base):
     __tablename__ = "day_plan"
     __table_args__ = (UniqueConstraint("date", name="uq_day_plan_date"),)
